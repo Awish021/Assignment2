@@ -17,7 +17,6 @@ exec(char *path, char **argv)
   struct inode *ip;
   struct proghdr ph;
   pde_t *pgdir, *oldpgdir;
-
   begin_op();
   if((ip = namei(path)) == 0){
     end_op();
@@ -94,8 +93,8 @@ exec(char *path, char **argv)
   oldpgdir = proc->pgdir;
   proc->pgdir = pgdir;
   proc->sz = sz;
-  proc->tf->eip = elf.entry;  // main
-  proc->tf->esp = sp;
+  thread->tf->eip = elf.entry;  // main
+  thread->tf->esp = sp;
   switchuvm(proc);
   freevm(oldpgdir);
   return 0;

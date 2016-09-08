@@ -28,7 +28,7 @@ seginit(void)
   c->gdt[SEG_UDATA] = SEG(STA_W, 0, 0xffffffff, DPL_USER);
 
   // Map cpu and proc -- these are private per cpu.
-  c->gdt[SEG_KCPU] = SEG(STA_W, &c->cpu, 8, 0);
+  c->gdt[SEG_KCPU] = SEG(STA_W, &c->cpu, 12, 0);
 
   lgdt(c->gdt, sizeof(c->gdt));
   loadgs(SEG_KCPU << 3);
@@ -36,6 +36,7 @@ seginit(void)
   // Initialize cpu-local storage.
   cpu = c;
   proc = 0;
+  thread=0;
 }
 
 // Return the address of the PTE in page table pgdir
@@ -167,7 +168,7 @@ switchuvm(struct proc *p)
   cpu->gdt[SEG_TSS] = SEG16(STS_T32A, &cpu->ts, sizeof(cpu->ts)-1, 0);
   cpu->gdt[SEG_TSS].s = 0;
   cpu->ts.ss0 = SEG_KDATA << 3;
-  cpu->ts.esp0 = (uint)proc->kstack + KSTACKSIZE;
+  cpu->ts.esp0 = (uint)thread->kstack + KSTACKSIZE;
   // setting IOPL=0 in eflags *and* iomb beyond the tss segment limit
   // forbids I/O instructions (e.g., inb and outb) from user space
   cpu->ts.iomb = (ushort) 0xFFFF;
