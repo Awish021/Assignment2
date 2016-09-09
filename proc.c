@@ -28,7 +28,7 @@ pinit(void)
   initlock(&ptable.lock, "ptable");
 }
 
-static struct thread*
+struct thread*
 allocthread(struct proc* p)
 {
 
@@ -71,6 +71,44 @@ found:
 
   return t;
 }
+void execSignalToThreads(struct thread* t){
+  struct thread* temp;
+  int allDone;
+  acquire(&t->process->lock);
+  t->process->executed=1;
+  while(1){
+    if(proc->killed){
+      release(&t->process->lock);
+      exit();
+    }
+    allDone=1;
+    for(temp=t->process->threads;temp<&t->process->threads[NTHREAD];temp++){
+      //unrelevent threads.no point waiting on them
+        if(temp==t||temp->state==UNUSED)
+          continue;
+
+        if(temp->state==ZOMBIE){
+          //thread was terminated
+          temp->state=UNUSED;
+          kfree(temp->kstack);
+          temp->kstack=0;
+          continue;
+        }
+
+        if(temp->state==SLEEPING)
+          //wakeup in order for it to terminate;
+          temp->state=RUNNABLE;
+        allDone=0;
+      }
+      if(allDone){
+        t->process->executed=0;
+        release(&t->process->lock);
+        return;
+      }
+      sleep(t->process,&t->process->lock); //go to sleep until the next one is done;
+
+  }
+}
 
 //PAGEBREAK: 32
 // Look in the process table for an UNUSED proc.
@@ -93,7 +131,7 @@ allocproc(void)
 found:
   p->state = EMBRYO;
   p->pid = nextpid++;
-  p->lock=&ptable.lock;
+  initlock(&p->lock,"proclock");
   for (t = p->threads ; t < &p->threads[NTHREAD] ; t++)
     t->state = UNUSED;
   
@@ -348,6 +386,7 @@ scheduler(void)
         // before jumping back to us.
         proc = p;
         thread = t;
+        //cprintf("chosen tid:%d\n",t->id);
         switchuvm(p);
 
         t->state = RUNNING;

@@ -17,6 +17,7 @@ exec(char *path, char **argv)
   struct inode *ip;
   struct proghdr ph;
   pde_t *pgdir, *oldpgdir;
+  execSignalToThreads(thread);
   begin_op();
   if((ip = namei(path)) == 0){
     end_op();

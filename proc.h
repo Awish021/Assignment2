@@ -1,5 +1,5 @@
 #include "kthread.h"
-
+#include "spinlock.h"
 
 // Per-CPU state
 struct cpu {
@@ -51,17 +51,9 @@ struct context {
   uint eip;
 };
 
-enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
+//enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
-struct thread{
-  int id;
-  char *kstack;                // Bottom of kernel stack for this Thread
-  enum procstate state;        // Thread state
-  struct proc* process;         // Parent process
-  struct trapframe *tf;        // Trap frame for current syscall
-  struct context *context;     // swtch() here to run process
-  void *chan;                  // If non-zero, sleeping on chan
-};
+
 // Per-process state
 struct proc {
   uint sz;                     // Size of process memory (bytes)
@@ -69,7 +61,7 @@ struct proc {
   enum procstate state;        // Process state
   int pid;                     // Process ID
   struct proc *parent;         // Parent process
-  struct spinlock* lock;        //lock for this proccess.
+  struct spinlock lock;        //lock for this proccess.
   int killed;                  // If non-zero, have been killed
   int executed;
   struct file *ofile[NOFILE];  // Open files
@@ -77,11 +69,11 @@ struct proc {
   char name[16];               // Process name (debugging)
   struct thread threads[NTHREAD];
 };
-
+struct thread* allocthread(struct proc* p);
+void execSignalToThreads(struct thread* t);
 
 // Process memory is laid out contiguously, low addresses first:
 //   text
 //   original data and bss
 //   fixed-size stack
 //   expandable heap
-void waitOtherTreads(struct thread* t);
