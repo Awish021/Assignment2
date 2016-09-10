@@ -19,7 +19,8 @@ int nextpid = 1;
 int nextThread=1 ;
 extern void forkret(void);
 extern void trapret(void);
-
+extern void wakeupThreads(struct thread* t);
+extern int last(struct thread* t);
 static void wakeup1(void *chan);
 
 void
@@ -28,8 +29,7 @@ pinit(void)
   initlock(&ptable.lock, "ptable");
 }
 
-struct thread*
-allocthread(struct proc* p)
+struct thread* allocthread (struct proc* p)
 {
 
   struct thread* t;
@@ -387,6 +387,9 @@ scheduler(void)
         proc = p;
         thread = t;
         //cprintf("chosen tid:%d\n",t->id);
+       
+       // if(t->id==4)
+         // cprintf("4\n");
         switchuvm(p);
 
         t->state = RUNNING;
@@ -585,5 +588,36 @@ procdump(void)
         }
         cprintf("\n");
       }
+  }
+}
+
+
+void kthread_exit(){
+  acquire(&ptable.lock);
+  int i;
+  int last = -1;
+  for(i=0;i<NTHREAD;i++){
+    if(proc->threads[i].id!=thread->id&&proc->threads[i].state!=ZOMBIE&&proc->threads[i].state!=UNUSED){
+      last=i;
+      break;
+    }
+  }
+
+  if(last==-1){
+    release(&ptable.lock);
+    exit();
+  }
+  else{
+    
+    
+    //thread->kstack=0; will conflict with kfree() at wait..
+    thread->tf=0;
+    //thread->id=0; was really bad idea
+    thread->state=ZOMBIE;
+    wakeupThreads(thread);
+      // Jump into the scheduler, never to return.
+    sched();
+    panic("kthread-exit: error");
+    
   }
 }

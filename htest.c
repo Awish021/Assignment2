@@ -4,13 +4,14 @@
  *  Created on: Apr 26, 2015
  *      Author: hodai
  */
-#include "kthread.h"
+
 #include "types.h"
 #include "stat.h"
 #include "user.h"
 #include "fs.h"
 
-#define STACK_SIZE 1000
+
+#define STACK_SIZE 4096
 
 void* execThread(){
   char* cat[] ={"cat", 0};
@@ -31,7 +32,6 @@ void* normalThread(){
 }
 
 void* loopThread(){
-  printf(0," \n\n");
   printf(1, "loop thread, tid:%d\n", kthread_id());
   for(;;){};
   kthread_exit();
@@ -39,7 +39,7 @@ void* loopThread(){
 }
 
 void* sleepThread(){
-  printf(1, "loop thread, tid:%d\n", kthread_id());
+  printf(1, "sleep thread, tid:%d\n", kthread_id());
   sleep(1000);
   printf(1, "tid:%d done\n", kthread_id());
   kthread_exit();
@@ -88,11 +88,11 @@ void stressTest1(int count){
 
 int main(){
   char buf[100];
-  char* stack;
+  void* stack;
   int t;
-
   printf(1, "chose operation\n");
-
+  stack = malloc(STACK_SIZE);
+  printf(1,"the stack %x",stack);
   while(read(0, buf, 100) >= 0){
     stack = malloc(STACK_SIZE);
     if(strcmp("sleep\n", buf) == 0){
@@ -141,9 +141,8 @@ int main(){
     } else {
       printf(2, "error: %s\n", buf);
     }
-    printf(0,"hi\n");
+
     memset(buf, 0, 100);
-    printf(0,"bye\n");
   }
 
   exit();

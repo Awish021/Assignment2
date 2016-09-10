@@ -7,22 +7,30 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "kthread.h"
+extern void forkret(void);
 
 
 void wakeupThreads(void* chan){
 	struct thread* t;
 	for(t=proc->threads;t<&proc->threads[NTHREAD];t++){
-		if(t->state==SLEEPING&&t->chan==chan)
+		if(t->state==SLEEPING&&t->chan==chan){
 			t->state=RUNNABLE;
+		}
 	}
 }
 
 int last(struct thread* t){
 	struct proc* p =t->process;
 	struct thread* temp;
-	for(temp=p->threads;temp<&p->threads[NTHREAD];t++)
-		if(temp!=t&&temp->state!=ZOMBIE&&temp->state!=UNUSED)
+	int i=0;
+	for(temp=p->threads;temp<&p->threads[NTHREAD];t++){
+		i++;
+		if(temp!=t&&temp->state!=ZOMBIE&&temp->state!=UNUSED){
+			
+			cprintf("its ids %s, %d, %d, i:%d",t->process->name,t->id,temp->id,i);
 			return 0;
+		}
+	}
 	return 1;
 		
 	
@@ -33,14 +41,17 @@ int kthread_create(void* (start_func)(),void* stack,int stack_size){
 	new =allocthread(proc);
 	if(!new||stack<=0)
 		return -1;
-	cprintf("here\n");
+	//cprintf("the func pointer is %x\n",start_func);
 	*new->tf=*thread->tf;
+	//new->tf->eflags = FL_IF;
+	new->tf->eip=(uint)start_func;
+	new->tf->esp=(uint) (stack+stack_size);
 
-	new->tf->eip=(int)start_func;
-	new->tf->esp=(int) (stack)+stack_size;
-	acquire(&new->process->lock);
+	//new->context->eip=(int)start_func;
+	//new->context->eip = (uint)forkret;
+	//new->context->esp=(int) (stack)+stack_size;
+
 	new->state=RUNNABLE;
-	release(&new->process->lock);
 
 	return new->id;
 }
@@ -49,21 +60,14 @@ int kthread_id(){
 	return thread->id;
 }
 
-void kthread_exit(){
-	if(last(thread))
-		exit();
-	else{
-		thread->state=ZOMBIE;
-		wakeupThreads(thread);
-		
-	}
-}
 
 
 int kthread_join(int thread_id){
 	struct thread* t;
 	int exists=0;
+	
 	acquire(&proc->lock);
+	
 	for(t = proc->threads; t < &proc->threads[NTHREAD]; t++){
 		if(t->id==thread_id){
 			exists=1;
@@ -87,8 +91,9 @@ int kthread_join(int thread_id){
     return 0;
   }
   else{
-  	while(t->state!=ZOMBIE)
+  	while(t->state!=ZOMBIE){
   		sleep(t,&proc->lock);
+  		}
   	if(t->state==UNUSED)
   		panic("kthread_join: won't wake up because thread was going from ready to unused");
   	goto free_and_return;
