@@ -647,6 +647,7 @@ int kthread_mutex_alloc(){
       mutex->locked=0;
       mutex->waiting=0;
       mutex->owner=0;
+      mutex->num=0;
       initlock(&mutex->lock,"mutexlock");
       return i;
     }
@@ -658,7 +659,12 @@ int kthread_mutex_alloc(){
 }
 int kthread_mutex_dealloc(int mutex_id){
   struct kthread_mutex_t* mutex=&mtable.mutexes[mutex_id];
+
   acquire(&mtable.lock);
+  if(!mutex->used){
+    release(&mtable.lock);
+    return -1;
+  }
   if(mutex->locked==1){
     release(&mtable.lock);
     return -1;
@@ -678,14 +684,21 @@ int kthread_mutex_lock(int mutex_id){
   if(!mutex)
     return -1;
   acquire(&mutex->lock);
+  if(!mutex->used){
+    release(&mutex->lock);
+    return -1;
+  }
   if(mutex->locked){
     //our implementation of watining list.. using an thread field "list" to create linked list of waiting threads.
     thread->list=mutex->waiting;
     mutex->waiting=thread;
+    mutex->num++;
     sleep(thread,&mutex->lock); //moving the thread to "blocked" state. sleeping on itself.
   }
   else{
     //LOCK IS MINE
+    if(mutex->num>0)
+      panic("number panic");
     mutex->locked=1;
     mutex->owner=thread;
   }
@@ -737,18 +750,20 @@ int kthread_mutex_unlock(int mutex_id){
 
     if(t){
       mutex->owner=t;
+      mutex->num--;
       wakeup(t);
     }
     else{
       // no thread is waiting for this lock.
       mutex->locked=0;
       mutex->owner=0;
+      mutex->waiting=0;
     }
     release(&mutex->lock);
     return 0;
 
-    
-  
-
-  return 0;
+}
+int kthread_mutex_num(int mutex_id){
+  struct kthread_mutex_t* mutex=&mtable.mutexes[mutex_id];
+  return mutex->num;
 }

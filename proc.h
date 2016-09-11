@@ -78,7 +78,8 @@ struct kthread_mutex_t{
   struct thread* waiting;
   struct spinlock lock;
   int locked;
-  int used; 
+  int used;
+  int num; 
 };
 
 // Process memory is laid out contiguously, low addresses first:
