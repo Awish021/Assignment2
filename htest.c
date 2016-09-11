@@ -11,7 +11,7 @@
 #include "fs.h"
 
 
-#define STACK_SIZE 4096
+#define STACK_SIZE 1000
 
 void* execThread(){
   char* cat[] ={"cat", 0};
@@ -63,7 +63,7 @@ void stressTest1(int count){
 
   for (i = 0 ; i < count; i++){
     stack = malloc(STACK_SIZE);
-    tid[i] = kthread_create(&theThread, stack+STACK_SIZE, STACK_SIZE);
+    tid[i] = kthread_create(theThread, stack+STACK_SIZE, STACK_SIZE);
     if(tid[i] <= 0){
       printf(2, "error: kthread_create return with: %d, for index:%d", tid[i], i);
       fail = 1;
@@ -92,19 +92,19 @@ int main(){
   int t;
   printf(1, "chose operation\n");
   stack = malloc(STACK_SIZE);
-  printf(1,"the stack %x",stack);
+
   while(read(0, buf, 100) >= 0){
     stack = malloc(STACK_SIZE);
     if(strcmp("sleep\n", buf) == 0){
-      t = kthread_create(&sleepThread, stack+STACK_SIZE, STACK_SIZE);
+      t = kthread_create(sleepThread, stack+STACK_SIZE, STACK_SIZE);
       printf(1, "creating sleep thread tid:%d\n", t);
 
     } else if(strcmp(buf, "loop\n") == 0){
-      t = kthread_create(&loopThread, stack+STACK_SIZE, STACK_SIZE);
+      t = kthread_create(loopThread, stack+STACK_SIZE, STACK_SIZE);
       printf(1, "creating loop thread tid:%d\n", t);
 
     } else if(strcmp(buf, "norm\n") == 0){
-      t = kthread_create(&normalThread, stack+STACK_SIZE, STACK_SIZE);
+      t = kthread_create(normalThread, stack+STACK_SIZE, STACK_SIZE);
       printf(1, "creating normal thread tid:%d\n", t);
 
     } else if(strcmp(buf, "join\n") == 0){
@@ -119,11 +119,11 @@ int main(){
       }
 
     } else if(strcmp(buf, "et\n") == 0){
-      t = kthread_create(&exitThread, stack+STACK_SIZE, STACK_SIZE);
+      t = kthread_create(exitThread, stack+STACK_SIZE, STACK_SIZE);
       printf(1, "creating exit thread tid:%d\n", t);
 
     } else if(strcmp(buf, "exec\n") == 0){
-      t = kthread_create(&execThread, stack+STACK_SIZE, STACK_SIZE);
+      t = kthread_create(execThread, stack+STACK_SIZE, STACK_SIZE);
       printf(1, "creating exec thread tid:%d\n", t);
 
     } else if(strcmp(buf, "exit\n") == 0){

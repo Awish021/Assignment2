@@ -13,6 +13,11 @@ struct {
   struct proc proc[NPROC];
 } ptable;
 
+struct{
+  struct spinlock lock;
+  struct kthread_mutex_t mutexes[MAX_MUTEXES];
+}mtable;
+
 static struct proc *initproc;
 
 int nextpid = 1;
@@ -27,6 +32,7 @@ void
 pinit(void)
 {
   initlock(&ptable.lock, "ptable");
+  initlock(&mtable.lock,"mtable");
 }
 
 struct thread* allocthread (struct proc* p)
@@ -75,7 +81,7 @@ void execSignalToThreads(struct thread* t){
   struct thread* temp;
   int allDone;
   acquire(&t->process->lock);
-  t->process->executed=1;
+  //t->process->executed=1;
   while(1){
     if(proc->killed){
       release(&t->process->lock);
@@ -95,9 +101,15 @@ void execSignalToThreads(struct thread* t){
           continue;
         }
 
-        if(temp->state==SLEEPING)
+        if(temp->state==SLEEPING){
           //wakeup in order for it to terminate;
+          //temp->killed=1;
           temp->state=RUNNABLE;
+          }
+          temp->killed=1;
+          release(&t->process->lock);
+          kthread_join(temp->id);
+          acquire(&t->process->lock);
         allDone=0;
       }
       if(allDone){
@@ -105,7 +117,7 @@ void execSignalToThreads(struct thread* t){
         release(&t->process->lock);
         return;
       }
-      sleep(t->process,&t->process->lock); //go to sleep until the next one is done;
+      //sleep(t->process,&t->process->lock); //go to sleep until the next one is done;
 
   }
 }
@@ -620,4 +632,119 @@ void kthread_exit(){
     panic("kthread-exit: error");
     
   }
+}
+
+int kthread_mutex_alloc(){
+  struct kthread_mutex_t* mutex;
+  int i;
+  acquire(&mtable.lock);
+  for(i=0;i<MAX_MUTEXES;i++){
+    if(!mtable.mutexes[i].used){
+      mtable.mutexes[i].used=1;
+      release(&mtable.lock);
+      mutex=&mtable.mutexes[i];
+      mutex->locked=0;
+      mutex->waiting=0;
+      mutex->owner=0;
+      initlock(&mutex->lock,"mutexlock");
+      return i;
+    }
+  }
+  //there is no free mutex
+  release(&mtable.lock);
+  return -1;
+
+}
+int kthread_mutex_dealloc(int mutex_id){
+  struct kthread_mutex_t* mutex=&mtable.mutexes[mutex_id];
+  acquire(&mtable.lock);
+  if(mutex->locked==1){
+    release(&mtable.lock);
+    return -1;
+  }
+  if(mutex->waiting){
+    release(&mtable.lock);
+    return -1;
+  }
+  mutex->used=0;
+  release(&mtable.lock);
+  return 0;
+
+
+}
+int kthread_mutex_lock(int mutex_id){
+  struct kthread_mutex_t* mutex=&mtable.mutexes[mutex_id];
+  if(!mutex)
+    return -1;
+  acquire(&mutex->lock);
+  if(mutex->locked){
+    //our implementation of watining list.. using an thread field "list" to create linked list of waiting threads.
+    thread->list=mutex->waiting;
+    mutex->waiting=thread;
+    sleep(thread,&mutex->lock); //moving the thread to "blocked" state. sleeping on itself.
+  }
+  else{
+    //LOCK IS MINE
+    mutex->locked=1;
+    mutex->owner=thread;
+  }
+  release(&mutex->lock);
+  cprintf("hi2\n");
+  return 0;
+}
+
+//FIFO STYLE
+struct thread* getWaitingThread(struct kthread_mutex_t* mutex){
+  struct thread* ans;
+  struct thread* prev;
+  ans=mutex->waiting;
+  prev=ans;
+  if(ans)
+    return 0;
+  //getting the last link in this linked list.
+  while(ans->list){
+    prev=ans;
+    ans=ans->list;
+  }
+  //Only one thread is wating
+  if(ans==prev)
+    mutex->waiting=0;
+  else
+    prev->list=0;
+  return ans;
+
+}
+
+///CONTINUE HERE !! HOPEFULLY LOCK IS WORKING FINE
+int kthread_mutex_unlock(int mutex_id){
+    struct kthread_mutex_t* mutex=&mtable.mutexes[mutex_id];
+    acquire(&mutex->lock);
+    if(!mutex->locked){
+      release(&mutex->lock);
+      return -1;
+    }
+    if(mutex->owner!=thread){
+      release(&mutex->lock);
+      panic("a thread trying to unlock mutex he does not own"); // make sure that what Vadim meant. if not, just delete this if.
+       return -1;
+
+    }
+    // we are actually doing fair FIFO mutex. 
+    struct thread* t = getWaitingThread(mutex);
+    if(t){
+      mutex->owner=t;
+      wakeup(t);
+    }
+    else{
+      // no thread is waiting for this lock.
+      mutex->locked=0;
+      mutex->owner=0;
+    }
+    release(&mutex->lock);
+    return 0;
+
+    
+  
+
+  return 0;
 }

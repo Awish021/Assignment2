@@ -2,10 +2,18 @@
 #define KTHREAD_H
 
 #define NTHREAD 16
+#define MAX_MUTEXES 64
+
+
 int kthread_create(void* (start_func)(),void* stack,int stack_size);
 int kthread_id();
 void kthread_exit();
 int kthread_join();
+int kthread_mutex_alloc();
+int kthread_mutex_dealloc(int mutex_id);
+int kthread_mutex_lock(int mutex_id);
+int kthread_mutex_unlock(int mutex_id);
+
 
 enum procstate { UNUSED, EMBRYO, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
@@ -17,7 +25,10 @@ struct thread{
   struct trapframe *tf;        // Trap frame for current syscall
   struct context *context;     // swtch() here to run process
   void *chan;                  // If non-zero, sleeping on chan
+  int killed;
+  struct thread* list;
 };
+
 
 
 

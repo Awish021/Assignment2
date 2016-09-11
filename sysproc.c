@@ -120,3 +120,24 @@ int sys_kthread_join(void){
   kthread_join(kthread_id);
   return 0;
 }
+int sys_kthread_mutex_alloc(){
+  return kthread_mutex_alloc();
+}
+int sys_kthread_mutex_dealloc(){
+  int mutex_id;
+  if(argint(0, &mutex_id) < 0)
+    return -1;
+  return kthread_mutex_dealloc(mutex_id);
+}
+int sys_kthread_mutex_lock(){
+  int mutex_id;
+  if(argint(0, &mutex_id) < 0)
+    return -1;
+  return kthread_mutex_lock(mutex_id);
+}
+int sys_kthread_mutex_unlock(){
+  int mutex_id;
+  if(argint(0, &mutex_id) < 0)
+    return -1;
+  return kthread_mutex_unlock(mutex_id);
+}

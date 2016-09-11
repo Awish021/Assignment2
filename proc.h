@@ -73,6 +73,14 @@ struct proc {
 struct thread* allocthread(struct proc* p);
 void execSignalToThreads(struct thread* t);
 
+struct kthread_mutex_t{
+  struct thread* owner;
+  struct thread* waiting;
+  struct spinlock lock;
+  int locked;
+  int used; 
+};
+
 // Process memory is laid out contiguously, low addresses first:
 //   text
 //   original data and bss
