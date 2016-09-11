@@ -11,7 +11,6 @@ int mutex;
 int test;
 
 void printer (){
-	printf(1,"hiiiiiii");
 	int input;
 	input = kthread_mutex_lock(mutex);
 	if(input<0)
@@ -39,7 +38,7 @@ int main(int argc, char **argv)
 		if(input<0)
 			printf(1,"Error: mutex didnt lock! (%d)\n",input);
 		char * stack = malloc (1024);
-		int tid = kthread_create ((void*)&printer, stack, 1024);
+		int tid = kthread_create ((void*)printer, stack, 1024);
 		if(tid<0) printf(1,"Thread wasnt created correctly! (%d)\n",tid);
 		printf(1,"joining on thread %d\n",tid);
 		if(test)printf(1,"Error: mutex didnt prevent writing!\n");

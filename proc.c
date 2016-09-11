@@ -52,6 +52,7 @@ found:
 
   t->state = EMBRYO;
   t->id = nextThread++;    // must hold the lock to avoid duplicate id's
+  t->list=0;
   release(&ptable.lock);
   t->process = p;
   // Allocate kernel stack.
@@ -689,7 +690,7 @@ int kthread_mutex_lock(int mutex_id){
     mutex->owner=thread;
   }
   release(&mutex->lock);
-  cprintf("hi2\n");
+
   return 0;
 }
 
@@ -699,7 +700,8 @@ struct thread* getWaitingThread(struct kthread_mutex_t* mutex){
   struct thread* prev;
   ans=mutex->waiting;
   prev=ans;
-  if(ans)
+
+  if(!ans)
     return 0;
   //getting the last link in this linked list.
   while(ans->list){
@@ -717,20 +719,22 @@ struct thread* getWaitingThread(struct kthread_mutex_t* mutex){
 
 ///CONTINUE HERE !! HOPEFULLY LOCK IS WORKING FINE
 int kthread_mutex_unlock(int mutex_id){
+
     struct kthread_mutex_t* mutex=&mtable.mutexes[mutex_id];
     acquire(&mutex->lock);
     if(!mutex->locked){
       release(&mutex->lock);
       return -1;
     }
-    if(mutex->owner!=thread){
+    /*if(mutex->owner!=thread){
       release(&mutex->lock);
       panic("a thread trying to unlock mutex he does not own"); // make sure that what Vadim meant. if not, just delete this if.
        return -1;
 
-    }
+    }*/
     // we are actually doing fair FIFO mutex. 
     struct thread* t = getWaitingThread(mutex);
+
     if(t){
       mutex->owner=t;
       wakeup(t);
