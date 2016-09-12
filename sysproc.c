@@ -148,3 +148,15 @@ int sys_kthread_mutex_num(){
     return -1;
   return kthread_mutex_num(mutex_id);
 }
+
+int
+sys_forkcow(void)
+{
+  return forkcow();
+}
+
+int
+sys_waitcow(void)
+{
+  return waitcow();
+}

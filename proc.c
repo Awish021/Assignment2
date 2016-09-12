@@ -144,6 +144,7 @@ allocproc(void)
 found:
   p->state = EMBRYO;
   p->pid = nextpid++;
+  p->shared=0;
   initlock(&p->lock,"proclock");
   for (t = p->threads ; t < &p->threads[NTHREAD] ; t++)
     t->state = UNUSED;
@@ -230,6 +231,54 @@ fork(void)
   }
   np->sz = proc->sz;
   np->parent = proc;
+  *t->tf = *thread->tf;           
+
+  // Clear %eax so that fork returns 0 in the child.
+  t->tf->eax = 0;                 
+
+  for(i = 0; i < NOFILE; i++)
+    if(proc->ofile[i])
+      np->ofile[i] = filedup(proc->ofile[i]);
+  np->cwd = idup(proc->cwd);
+
+  safestrcpy(np->name, proc->name, sizeof(proc->name));
+ 
+  pid = np->pid;
+
+  // lock to force the compiler to emit the np->state write last.
+  acquire(&ptable.lock);
+  t->state = RUNNABLE;  
+  np->state = RUNNABLE;             // the proc is in state: Runnable, running or sleeping
+  release(&ptable.lock);
+  
+  return pid;
+}
+
+// Create a new process copying p as the parent.
+// Sets up stack to return as if from system call.
+// Caller must set state of returned proc to RUNNABLE.
+int
+forkcow(void)
+{
+  int i, pid;
+  struct proc *np;
+
+  // Allocate process.
+  if((np = allocproc()) == 0)
+    return -1;
+  struct thread* t = np->threads;
+  // Copy process state from p.
+  if((np->pgdir = cowmapuvm(proc->pgdir, proc->sz)) == 0){
+    kfree(t->kstack); 
+    t->kstack = 0;
+    np->state = UNUSED;
+    t->state = UNUSED;
+    return -1;
+  }
+  np->sz = proc->sz;
+  np->parent = proc;
+  proc->shared=1;
+  np->shared=1;
   *t->tf = *thread->tf;           
 
   // Clear %eax so that fork returns 0 in the child.
@@ -343,6 +392,66 @@ wait(void)
           }
         }
         freevm(p->pgdir);
+        p->pid = 0;
+        p->executed=0;
+        p->parent = 0;
+        p->name[0] = 0;
+        p->killed = 0;
+
+        p->state = UNUSED;
+        release(&ptable.lock);
+        return pid;
+      }
+    }
+
+    // No point waiting if we don't have any children.
+    if(!havekids || proc->killed|| proc->executed){
+      release(&ptable.lock);
+      return -1;
+    }
+
+    // Wait for children to exit.  (See wakeup1 call in proc_exit.)
+    sleep(proc, &ptable.lock);  //DOC: wait-sleep
+  }
+}
+// Wait for a child process to exit and return its pid.
+// Return -1 if this process has no children.
+int
+waitcow(void)
+{
+
+  struct proc *p;
+  int havekids, pid;
+  struct thread* t;
+  acquire(&ptable.lock);
+  for(;;){
+    // Scan through table looking for zombie children.
+    havekids = 0;
+    for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
+      if(p->parent != proc)
+        continue;
+      havekids = 1;
+      if(p->state == ZOMBIE){
+        // Found one.
+        pid = p->pid;
+       
+        for(t = p->threads ; t < &p->threads[NTHREAD] ; t++){
+          if(t->state != UNUSED){
+            if(t->state != ZOMBIE)
+              panic("wait panic: not ZOMBIE or UNUSED");
+            
+            kfree(t->kstack);
+            t->kstack = 0;
+            t->state = UNUSED;
+          }
+        }
+        if(!p->shared)
+          freevm(p->pgdir);
+        else{
+          cowfreeuvm(p->pgdir);
+          p->shared=0;
+        }
+
         p->pid = 0;
         p->executed=0;
         p->parent = 0;

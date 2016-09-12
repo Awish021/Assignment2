@@ -115,6 +115,8 @@ void            userinit(void);
 int             wait(void);
 void            wakeup(void*);
 void            yield(void);
+int             forkcow(void);
+int             waitcow(void);
 
 // swtch.S
 void            swtch(struct context**, struct context*);
@@ -174,6 +176,13 @@ void            switchuvm(struct proc*);
 void            switchkvm(void);
 int             copyout(pde_t*, uint, void*, uint);
 void            clearpteu(pde_t *pgdir, char *uva);
+// COW
+void            cowfreeuvm(pde_t*);
+pde_t*          cowmapuvm(pde_t*, uint);
+int             cowcopyuvm(void);
+
+
+
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))

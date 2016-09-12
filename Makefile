@@ -172,10 +172,10 @@ UPROGS=\
 	_htest\
 	_ttest\
 	_mtest\
+	_cowtest\
 	_fssp\
 	_threadtest\
 	_threadtest1\
-	_threadtest2\
 	_threadtest3\
 	_threadtest4\
 	_sh\

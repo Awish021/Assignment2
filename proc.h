@@ -65,6 +65,7 @@ struct proc {
   struct spinlock lock;        //lock for this proccess.
   int killed;                  // If non-zero, have been killed
   int executed;
+  int shared;         
   struct file *ofile[NOFILE];  // Open files
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
