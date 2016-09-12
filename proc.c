@@ -562,6 +562,27 @@ kill(int pid)
   release(&ptable.lock);
   return -1;
 }
+  
+void printppn(pde_t* pgdir){
+  int i,j;
+  char* write;
+  pte_t* pgtable;
+  for(i=0; i<1024; i++){
+    if ((pgdir[i] & PTE_P) && (pgdir[i] & PTE_U)){
+      pgtable = (pte_t*)P2V(PTE_ADDR(pgdir[i]));
+      for (j=0; j<1024; j++){
+        if (pgtable[j] & PTE_P && pgtable[j] & PTE_U){
+          if (pgtable[j]& PTE_W){
+            write="y";
+           } 
+          else
+            write="n";
+          cprintf("%d -> %d %s\n", ((i<<10) + j), (pgtable[j] >> 12), write);   
+        }
+      }
+    }
+  }
+}
 
 //PAGEBREAK: 36
 // Print a process listing to console.  For debugging.
@@ -585,21 +606,23 @@ procdump(void)
   uint pc[10];
   struct thread* t;
   for(p = ptable.proc; p < &ptable.proc[NPROC]; p++){
-    for(t=p->threads;t<&p->threads[NTHREAD];t++)
-    {
-        if(p->state == UNUSED)
-          continue;
-        if(t->state >= 0 && t->state < NELEM(states) && states[t->state])
-          state = states[t->state];
+    if(p->state == UNUSED)
+      continue;  
+      if(p->state >= 0 && p->state < NELEM(states) && states[p->state])
+          state = states[p->state];
         else
           state = "???";
-        cprintf("%d %s %s", p->pid, state, p->name);
+        cprintf("%d %s %s\n", p->pid, state, p->name);
+        printppn(p->pgdir); 
+    for(t=p->threads;t<&p->threads[NTHREAD];t++)
+    {
+        
         if(t->state == SLEEPING){
           getcallerpcs((uint*)t->context->ebp+2, pc);
           for(i=0; i<10 && pc[i] != 0; i++)
             cprintf(" %p", pc[i]);
         }
-        cprintf("\n");
+        /*cprintf("\n");*/
       }
   }
 }
