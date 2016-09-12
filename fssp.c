@@ -23,12 +23,22 @@ int endOfLine = 0; //to check if we done to calculate the whole line.
 //struct binary_semaphore calc;
 int print;
 int calc;
-int barrier;
 
 struct idToSoldier{
 	int soldier;
 	int id;
 };
+
+typedef struct {
+	int pre_lock;
+	int post_lock;
+	int counter;
+	int max;
+} barrier;
+
+
+barrier b;
+static int mutex;
 struct idToSoldier *map;
 
 
@@ -161,7 +171,7 @@ void initialTable(){
 	table[P][R][X] = Z;
 	table[P][Z][X] = Z;
 	table[P][M][X] = -1;
-	table[P][X][X] = -1;
+	table[P][X][X] = F;
 
 	//-------------------------------
 
@@ -262,7 +272,15 @@ void printSoldier(int i){
 
 
 }
+void print_all(){
+	int i;
+	for(i = 0; i < numberOfSoldiers; i++){
+		//printf(1,"loop\n");
+		printSoldier(arrayCurrent[i]);
 
+	}
+	printf(1,"\n");
+}
 int getSoldierFromId(int id){
 	int i;
 	for(i=0;i<numberOfSoldiers;i++){
@@ -272,54 +290,78 @@ int getSoldierFromId(int id){
 	return -1;
 }
 
-void updateState(){
-	//printf(1,"hi\n");
-	//kthread_mutex_lock(barrier);
-	//kthread_mutex_unlock(barrier);
-	int i=getSoldierFromId(kthread_id());
-	while(1){
-		
-		if(i == 0){
-			arrayNext[(int)i] = table[arrayCurrent[i]][X][arrayCurrent[i+1]];
-		}
-		else if ((int)i > 0 && (int)i < numberOfSoldiers-1){
-			arrayNext[i] = table[arrayCurrent[i]][arrayCurrent[i-1]][arrayCurrent[i+1]];
-		}
-		else if ((int)i == numberOfSoldiers-1){
-			arrayNext[i] = table[arrayCurrent[i]][arrayCurrent[i-1]][X];
-		}
-		endOfLine++;
-
-		if(endOfLine == numberOfSoldiers){
-			//binary_semaphore_up(&print);
-			//printf(1,"print!\n");
-			kthread_mutex_unlock(print);
-			//printf(1,"after print!\n");
-			endOfLine = 0;
-		}
-		//lowering the semaphore key per thread(soldier)
-		//binary_semaphore_down(&calc);
-		//printf(1,"hi:%d\n",i);
-		//int k;
-
-		kthread_mutex_lock(calc);
-		//printf(1,"after_calc_lock\n");
-		if(arrayNext[i]==F) break;
-	}
+void free_barrier(barrier *b){
+	kthread_mutex_dealloc(b->pre_lock);
+	kthread_mutex_dealloc(b->post_lock);
+	b->max = 0;
+	b->counter = 0;
 }
 
+void init_barrier(barrier *b, int max){
+	b->pre_lock = kthread_mutex_alloc();
+	b->post_lock = kthread_mutex_alloc();
+	b->max = max;
+	b->counter = 0;
+	kthread_mutex_lock(b->post_lock);	
+}
+
+void barrier_increase(barrier* b){
+	kthread_mutex_lock(b->pre_lock);
+	b->counter++;
+	if(b->max > b->counter)
+		kthread_mutex_unlock(b->pre_lock);	
+	else // max == counter
+		kthread_mutex_unlock(b->post_lock);			
+	
+	kthread_mutex_lock(b->post_lock);
+	b->counter--;
+	if(b->counter > 0)
+		kthread_mutex_unlock(b->post_lock);
+	else // counter == 0
+		kthread_mutex_unlock(b->pre_lock);
+}
+
+void updateState(){
+	barrier_increase(&b);
+	int i=getSoldierFromId(kthread_id());
+	int next=0;
+	while(arrayCurrent[i] != F){
+		
+		if(i == 0){
+			next = table[arrayCurrent[i]][X][arrayCurrent[i+1]];
+		}
+		else if (i > 0 && i < numberOfSoldiers-1){
+			next = table[arrayCurrent[i]][arrayCurrent[i-1]][arrayCurrent[i+1]];
+		}
+		else if (i == numberOfSoldiers-1){
+			next = table[arrayCurrent[i]][arrayCurrent[i-1]][X];
+		}
+		barrier_increase(&b);	// wait for all thread to calculate their next_state
+		arrayNext[i]=next;
+		arrayCurrent=arrayNext;
+		barrier_increase(&b);
+		if(i==0){
+			kthread_mutex_lock(mutex);
+			
+			print_all();
+			kthread_mutex_unlock(mutex);
+		}
+		
+	}
+
+	kthread_exit();
+}
 
 
 int main(int argc, char **argv)
 {
-
 	if(argc != 2){
-		printf(1,"Missing arguments.\n");
+		printf(1,"Missing arguments. cannot init without number of sodliers\n");
 		exit();
 	}
 	numberOfSoldiers = atoi(argv[1]);
-	if(numberOfSoldiers > 16-1){
-		printf(1,"There is too many soldiers.\n ");
+	if(numberOfSoldiers > 15){ //15=16-1 = MAXTHREADS-MAIN
+		printf(1,"There is too many soldiers. cannot support more threads .\n ");
 		exit();
 	}
 
@@ -328,14 +370,10 @@ int main(int argc, char **argv)
 		exit();
 	}
 	int i;
-	barrier=kthread_mutex_alloc();
 	struct idToSoldier map1[numberOfSoldiers];
 	map= map1;
-	//binary_semaphore_init(&print, 1);
-	//binary_semaphore_init(&calc, 1);
-	print = kthread_mutex_alloc();
-	calc=kthread_mutex_alloc();
-
+	mutex = kthread_mutex_alloc();
+	init_barrier(&b,numberOfSoldiers);
 	arrayCurrent = (int*)malloc(numberOfSoldiers * sizeof(int)); //current state
 	arrayNext = (int*)malloc(numberOfSoldiers * sizeof(int)); //next state
 	initialTable();
@@ -347,11 +385,7 @@ int main(int argc, char **argv)
 		arrayCurrent[i] = Q;
 		
 	}
-	kthread_mutex_lock(print);
-	kthread_mutex_lock(calc);
-	//binary_semaphore_down(&print);
-	//binary_semaphore_down(&calc);
-	kthread_mutex_lock(barrier);
+	
 	for(i =0; i < numberOfSoldiers; i++){
 		void* stack = malloc (1024);
 		int id=kthread_create((void*) updateState, stack,1024);
@@ -359,49 +393,20 @@ int main(int argc, char **argv)
 		map[i].soldier=i;
 
 	}
+	print_all();
 
-	int done =1;
-	//kthread_mutex_unlock(barrier);
-	while(done==1){
-
-		for(i = 0; i < numberOfSoldiers; i++){
-		//printf(1,"loop\n");
-			printSoldier(arrayCurrent[i]);
-		}
-		printf(1,"\n");
-
-	//up the semaphore key to all of the threads after lowered it in updateState
-		for(i = 0; i < numberOfSoldiers; i++){
-		//binary_semaphore_up(&calc);
-			kthread_mutex_unlock(calc);
-		}
-
-//reduce the semaphore so we can update the arrayCurrent to be the arrayNext.
-	//binary_semaphore_down(&calc);
-		printf(1,"calc lock\n");
-		if(kthread_mutex_num(calc)!=0)
-			printf(1,"errorrrrrrrr\n");
-		kthread_mutex_lock(calc);
-		printf(1,"got calc lock \n");
-		for(i = 0; i < numberOfSoldiers; i++){
-			if(arrayCurrent[i] != F){
-			//binary_semaphore_down(&print);
-				//printf(1,"print lock\n");
-				kthread_mutex_lock(print);
-				//printf(1,"got print lock \n");
-				for(i = 0; i < numberOfSoldiers; i++){
-					arrayCurrent[i] = arrayNext[i];
-				}
-			}
-			else{
-				done=0;
-			}
-		}
+	for(i=0;i<numberOfSoldiers;i++){
+		kthread_join(map[i].id);
 	}
 
-	free(arrayCurrent);
-	free(arrayNext);
+	kthread_mutex_dealloc(mutex);
+	free_barrier(&b);
+
+
+
 	exit();
+
+	return 0;
 }
 
 

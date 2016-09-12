@@ -1,8 +1,8 @@
 #ifndef KTHREAD_H
 #define KTHREAD_H
 
-#define NTHREAD 16
-#define MAX_MUTEXES 64
+#define NTHREAD 64
+#define MAX_MUTEXES 16
 
 
 int kthread_create(void* (start_func)(),void* stack,int stack_size);
