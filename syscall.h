@@ -31,4 +31,5 @@
 #define SYS_kthread_mutex_num 30
 #define SYS_forkcow 	31
 #define SYS_waitcow		32
+#define SYS_procdump	33
  

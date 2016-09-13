@@ -34,6 +34,7 @@ int kthread_mutex_unlock(int);
 int kthread_mutex_num(int);
 int forkcow(void);
 int waitcow(void);
+void procdump(void);
 
 // ulib.c
 int stat(char*, struct stat*);

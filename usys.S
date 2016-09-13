@@ -40,4 +40,5 @@ SYSCALL(kthread_mutex_unlock);
 SYSCALL(kthread_mutex_num);
 SYSCALL(forkcow);
 SYSCALL(waitcow);
+SYSCALL(procdump);
 

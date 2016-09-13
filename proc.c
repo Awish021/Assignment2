@@ -448,7 +448,7 @@ waitcow(void)
         if(!p->shared)
           freevm(p->pgdir);
         else{
-          cowfreeuvm(p->pgdir);
+          freeuvmcow(p->pgdir);
           p->shared=0;
         }
 

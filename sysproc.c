@@ -160,3 +160,10 @@ sys_waitcow(void)
 {
   return waitcow();
 }
+
+int
+sys_procdump(void)
+{
+  procdump();
+  return 0;
+}
