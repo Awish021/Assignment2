@@ -392,3 +392,163 @@ copyout(pde_t *pgdir, uint va, void *p, uint len)
 //PAGEBREAK!
 // Blank page.
 
+struct entry
+{
+  // struct spinlock lock;
+  int count;
+} referenceTable[60 * 1024]; // table for all pages, upto 240MB(PHYSTOP)
+
+struct spinlock referencelock; // lock for share table
+
+void
+referenceTableinit(void)
+{
+  initlock(&referencelock, "referenceTable");
+  // cprintf("share table init done\n");
+}
+
+
+//crucial function. shallow copy of the pages instead of creating new ones.
+pde_t* cowmapuvm(pte_t* pgdir,uint size){
+  pde_t *d;
+  pte_t *pte;
+  uint pa, i, flags;
+  int page;
+   if((d = setupkvm()) == 0)
+    return 0;
+  acquire(&referencelock);
+  for(i = 0; i < size; i += PGSIZE){
+    if((pte = walkpgdir(pgdir, (void *) i, 0)) == 0)
+      panic("copyuvm: pte should exist");
+    if(!(*pte & PTE_P))
+      panic("copyuvm: page not present");
+    *pte &= ~PTE_W; // disable the Writable bit
+    pa = PTE_ADDR(*pte);
+    flags = PTE_FLAGS(*pte);
+
+    // instead of create new pages, remap the pages for cow child
+    if(mappages(d, (void*)i, PGSIZE, pa, flags) < 0)
+      goto bad;
+
+    page = (pa >> 12) & 0xFFFFF; // get the physical page num
+    if (referenceTable[page].count == 0) {
+      referenceTable[page].count = 2; // now is shared, totally 2 processes
+    }
+    else {
+      referenceTable[page].count++; // increase the share count
+    }
+    
+    // cprintf("pid: %d index: %d count: %d\n", proc->pid, index, referenceTable[index].count);
+  }
+  release(&referencelock);
+  lcr3(V2P(proc->pgdir)); // flush the TLB  
+  return d;
+
+bad:
+  freevm(d);
+  return 0;
+}
+
+
+//splits the pages and make them writeable.
+int copyuvmcow(void)
+{
+  // cprintf("in cow copy, index: %d\n", index);
+
+  uint pa;
+  int page;
+  uint addr;
+  pte_t *pte;
+  char *mem;
+  addr = rcr2();
+  pte = walkpgdir(proc->pgdir, (void *) addr, 0);
+  pa = PTE_ADDR(*pte);
+  page = (pa >> 12) & 0xFFFFF; // get the physical page num
+
+  // check if the address is in this process's user space
+  if (addr < proc->sz) {
+    acquire(&referencelock);
+
+    // if there are still multiple processes using this space
+    if (referenceTable[page].count > 1) {
+      if((mem = kalloc()) == 0) // allcoate a new page in physical memory
+        goto bad;
+      memmove(mem, (char*)P2V(pa), PGSIZE); // copy the page
+      *pte &= 0xFFF; // reset the first 12 bits of the entry
+      *pte |= V2P(mem) | PTE_W; // insert the new physical page num and set to writable
+
+      --referenceTable[page].count; // decrease the share count
+    }
+    // if there is only one process using this space. no need to create new pages..
+    else {
+      *pte |= PTE_W; // just enable the Writable bit for this process
+    }
+
+    release(&referencelock);
+    lcr3(V2P(proc->pgdir)); // flush the TLB
+    return 1;
+  }
+
+bad:
+  return 0;
+} 
+
+// Deallocate user pages to bring the process size from oldsz to
+// newsz.  oldsz and newsz need not be page-aligned, nor does newsz
+// need to be less than oldsz.  oldsz can be larger than the actual
+// process size.  Returns the new process size.
+// this function is similar to DeallocUVM . adjusted to COW mechanism
+int
+deallocuvmcow(pde_t *pgdir, uint oldsz, uint newsz)
+{
+  pte_t *pte;
+  uint a, pa;
+  int page;
+
+  if(newsz >= oldsz)
+    return oldsz;
+
+  a = PGROUNDUP(newsz);
+  acquire(&referencelock);
+  for(; a < oldsz; a += PGSIZE){
+    pte = walkpgdir(pgdir, (char*)a, 0);
+    if(!pte)
+      a += (NPTENTRIES - 1) * PGSIZE;
+    else if((*pte & PTE_P) != 0){
+      pa = PTE_ADDR(*pte);
+      page = (pa >> 12) & 0xFFFFF; // get the physical page num
+      if(pa == 0)
+        panic("kfree");
+      // if there are more than one process sharing the space, decrease the counter
+      if (referenceTable[page].count > 1) {
+        --referenceTable[page].count;
+      }
+      // if the memory space is only used by this process, free it
+      else {
+        char *v = P2V(pa);
+        kfree(v);
+        referenceTable[page].count = 0;
+      }
+      *pte = 0;
+    }
+  }
+  release(&referencelock);
+  return newsz;
+}
+
+void
+freeuvmcow(pde_t *pgdir)
+{
+  uint i;
+
+  if(pgdir == 0)
+    panic("freevm: no pgdir");
+  deallocuvmcow(pgdir, KERNBASE, 0); // the only change from freeuvm
+  for(i = 0; i < NPDENTRIES; i++){
+    if(pgdir[i] & PTE_P){
+      char *v = P2V(PTE_ADDR(pgdir[i]));
+      kfree(v);
+    }
+  }
+  kfree((char*)pgdir);
+}

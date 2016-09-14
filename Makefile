@@ -168,13 +168,14 @@ UPROGS=\
 	_ls\
 	_mkdir\
 	_rm\
+	_mt\
 	_htest\
 	_ttest\
 	_mtest\
+	_cowtest\
+	_fssp\
 	_threadtest\
 	_threadtest1\
-	_threadtest2\
-	_threadtest3\
 	_threadtest4\
 	_sh\
 	_stressfs\
@@ -217,7 +218,7 @@ QEMUGDB = $(shell if $(QEMU) -help | grep -q '^-gdb'; \
 	then echo "-gdb tcp::$(GDBPORT)"; \
 	else echo "-s -p $(GDBPORT)"; fi)
 ifndef CPUS
-CPUS := 2
+CPUS := 1
 endif
 QEMUOPTS = -drive file=fs.img,index=1,media=disk,format=raw -drive file=xv6.img,index=0,media=disk,format=raw -smp $(CPUS) -m 512 $(QEMUEXTRA)
 
@@ -249,7 +250,7 @@ qemu-nox-gdb: fs.img xv6.img .gdbinit
 
 EXTRA=\
 	mkfs.c ulib.c user.h cat.c echo.c forktest.c grep.c kill.c\
-	ln.c ls.c mkdir.c htest.c mtest.c ttest.c threadtest.c threadtest1.c threadtest2.c threadtest3.c threadtest4.c rm.c stressfs.c usertests.c wc.c zombie.c\
+	ln.c ls.c mkdir.c htest.c mtest.c fssp.c ttest.c mt.c threadtest.c threadtest1.c threadtest2.c threadtest4.c rm.c stressfs.c usertests.c wc.c zombie.c\
 	printf.c umalloc.c\
 	README dot-bochsrc *.pl toc.* runoff runoff1 runoff.list\
 	.gdbinit.tmpl gdbutil\

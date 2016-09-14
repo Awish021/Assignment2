@@ -141,3 +141,29 @@ int sys_kthread_mutex_unlock(){
     return -1;
   return kthread_mutex_unlock(mutex_id);
 }
+
+int sys_kthread_mutex_num(){
+  int mutex_id;
+  if(argint(0, &mutex_id) < 0)
+    return -1;
+  return kthread_mutex_num(mutex_id);
+}
+
+int
+sys_forkcow(void)
+{
+  return forkcow();
+}
+
+int
+sys_waitcow(void)
+{
+  return waitcow();
+}
+
+int
+sys_procdump(void)
+{
+  procdump();
+  return 0;
+}

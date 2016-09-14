@@ -81,6 +81,11 @@ trap(struct trapframe *tf)
             cpunum(), tf->cs, tf->eip);
     lapiceoi();
     break;
+  case T_PGFLT:
+    if (proc->shared == 1 && copyuvmcow() != 0) {
+      break;
+    }
+    panic("T_PGFLT - cannot alloc while shared");
 
   //PAGEBREAK: 13
   default:

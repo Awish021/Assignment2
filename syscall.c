@@ -106,6 +106,11 @@ extern int sys_kthread_mutex_alloc(void);
 extern int sys_kthread_mutex_dealloc(void);
 extern int sys_kthread_mutex_lock(void);
 extern int sys_kthread_mutex_unlock(void);
+extern int sys_kthread_mutex_num(void);
+extern int sys_forkcow(void);
+extern int sys_waitcow(void);
+extern int sys_procdump(void);
+
 
 
 static int (*syscalls[])(void) = {
@@ -138,6 +143,11 @@ static int (*syscalls[])(void) = {
 [SYS_kthread_mutex_dealloc] sys_kthread_mutex_dealloc,
 [SYS_kthread_mutex_lock] sys_kthread_mutex_lock,
 [SYS_kthread_mutex_unlock] sys_kthread_mutex_unlock,
+[SYS_kthread_mutex_num] sys_kthread_mutex_num,
+[SYS_forkcow]    sys_forkcow,
+[SYS_waitcow]    sys_waitcow,
+[SYS_procdump]   sys_procdump,
+
 };
 
 void
