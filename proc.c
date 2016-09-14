@@ -704,7 +704,7 @@ procdump(void)
   [UNUSED]    "unused",
   [EMBRYO]    "embryo",
   [SLEEPING]  "sleep ",
-  [RUNNABLE]  "runble",
+  [RUNNABLE]  "runnble",
   [RUNNING]   "run   ",
   [ZOMBIE]    "zombie"
   };
@@ -721,7 +721,11 @@ procdump(void)
           state = states[p->state];
         else
           state = "???";
+<<<<<<< 331f5210ed7c2d0229ec465574e2d728d3b31fe5
         cprintf("%d %s %s\n", p->pid, state, p->name);
+=======
+        cprintf("%d       %s %s\n", p->pid, state, p->name);
+>>>>>>> hopefully submission version
         printppn(p->pgdir); 
     for(t=p->threads;t<&p->threads[NTHREAD];t++)
     {

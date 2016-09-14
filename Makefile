@@ -176,7 +176,10 @@ UPROGS=\
 	_fssp\
 	_threadtest\
 	_threadtest1\
+<<<<<<< 331f5210ed7c2d0229ec465574e2d728d3b31fe5
 	_threadtest3\
+=======
+>>>>>>> hopefully submission version
 	_threadtest4\
 	_sh\
 	_stressfs\
@@ -251,7 +254,11 @@ qemu-nox-gdb: fs.img xv6.img .gdbinit
 
 EXTRA=\
 	mkfs.c ulib.c user.h cat.c echo.c forktest.c grep.c kill.c\
+<<<<<<< 331f5210ed7c2d0229ec465574e2d728d3b31fe5
 	ln.c ls.c mkdir.c htest.c mtest.c fssp.c ttest.c mt.c threadtest.c threadtest1.c threadtest2.c threadtest3.c threadtest4.c rm.c stressfs.c usertests.c wc.c zombie.c\
+=======
+	ln.c ls.c mkdir.c htest.c mtest.c fssp.c ttest.c mt.c threadtest.c threadtest1.c threadtest2.c threadtest4.c rm.c stressfs.c usertests.c wc.c zombie.c\
+>>>>>>> hopefully submission version
 	printf.c umalloc.c\
 	README dot-bochsrc *.pl toc.* runoff runoff1 runoff.list\
 	.gdbinit.tmpl gdbutil\

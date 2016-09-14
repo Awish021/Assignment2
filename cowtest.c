@@ -5,6 +5,7 @@
 
 
 void
+<<<<<<< 331f5210ed7c2d0229ec465574e2d728d3b31fe5
 regular_demo()
 {
    int pid = getpid();
@@ -40,6 +41,8 @@ regular_demo()
 }
 
 void
+=======
+>>>>>>> hopefully submission version
 cow_demo()
 {
    int pid = getpid();
@@ -78,8 +81,11 @@ cow_demo()
 int
 main(int argc, char *argv[])
 {
+<<<<<<< 331f5210ed7c2d0229ec465574e2d728d3b31fe5
     printf(1,"Regular fork demonstration:\n\n");
     regular_demo();
+=======
+>>>>>>> hopefully submission version
     printf(1,"COW demonstration:\n\n");
     cow_demo();
     exit();
