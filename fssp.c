@@ -291,6 +291,7 @@ int getSoldierFromId(int id){
 }
 
 void free_barrier(barrier *b){
+	kthread_mutex_unlock(b->post_lock);
 	kthread_mutex_dealloc(b->pre_lock);
 	kthread_mutex_dealloc(b->post_lock);
 	b->max = 0;
